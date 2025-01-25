@@ -1,0 +1,95 @@
+﻿@page "/"
+@rendermode InteractiveServer
+@using Microsoft.SemanticKernel
+@using System.Text
+@using Controllers
+@using generator.web.Services
+@inject Kernel kernel
+@inject IGeneratorService generatorService
+@inject IHelperService helperService
+
+<PageTitle>Home</PageTitle>
+
+<div class="container mt-5">
+    <div class="text-center">
+        <h1 class="display-4">Hello, world!</h1>
+        <p class="lead">Basic web site generating tool using ollama</p>
+        <button class="btn btn-primary mt-3" @onclick="Generate" style="@(isLoading ? "display:none;" : "")">Click
+            me</button>
+    </div>
+
+
+    @if (isLoading)
+    {
+        <div class="text-center mt-3">
+            <div class="spinner-border" role="status">
+                <span class="sr-only">Loading...</span>
+            </div>
+            <p>Loading...</p>
+        </div>
+    }
+    else
+    {
+        <div class="mt-5">
+            <h2>Generated Code</h2>
+            <div class="border p-3">
+                @generatedHtml
+            </div>
+
+            <button class="btn btn-success mt-3" @onclick="CreateFiles" disabled="@(isCreatingFiles)">Create Files</button>
+            @if (!string.IsNullOrEmpty(successMessage))
+            {
+                <div class="alert alert-success mt-3" role="alert">
+                    @successMessage
+                </div>
+            }
+        </div>
+    }
+</div>
+
+@code {
+    private string generatedHtml;
+    private bool isLoading;
+
+    private string successMessage;
+    private bool isCreatingFiles;
+
+    private async Task Generate()
+    {
+        isLoading = true;
+        try
+        {
+            generatedHtml = await generatorService.GenerateHTML();
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    public async Task CreateFiles()
+    {
+        isCreatingFiles = true;
+        successMessage = string.Empty;
+        try
+        {
+            var splitResponse = await helperService.DeconstructGenerateResponse(generatedHtml);
+            if (splitResponse.Any())
+            {
+                var result = await helperService.CreateFiles(splitResponse);
+                if (result)
+                {
+                    successMessage = "Files created successfully!";
+                }
+                else
+                {
+                    successMessage = "Failed to create files.";
+                }
+            }
+        }
+        finally
+        {
+            isCreatingFiles = false;
+        }
+    }
+}
